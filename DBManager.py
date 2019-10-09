@@ -4,9 +4,12 @@ def daterange(start_date, end_date):
     for n in range(int ((end_date - start_date).days)):
         yield start_date + timedelta(n)
 
-# start_date, end_date format YYYY-MM-DD
+# Get requested list of records from DB
+# symbol: The ticker symbol
+# start_date: First date to consider (YYYY-MM-DD string)
+# end_date: Last date to consider (YYYY-MM-DD string)
 def get_records(symbol, start_date, end_date):
-	db_con = psycopg2.connect(host="localhost", database="postgres", user="postgres", password="postgres")
+	db_con = psycopg2.connect(host = "localhost", database = "postgres", user = "postgres", password = "postgres")
 	db_cur = db_con.cursor()
 
 	stmt = "SELECT * FROM prices WHERE symbol = %s AND day BETWEEN date %s and date %s"

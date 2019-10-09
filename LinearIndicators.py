@@ -2,87 +2,108 @@ import DBManager
 import itertools
 import numpy as np
 
+from functools import reduce
+
 # Given a numpy array, return a new numpy array of all possible 2-combinations
+# ab: The numpy array
 def pairwise_combs(ab):
     n = len(ab)
-    N = n*(n-1)//2
-    out = np.empty((N,2,2),dtype=ab.dtype)
-    idx = np.concatenate(( [0], np.arange(n-1,0,-1).cumsum() ))
+    N = n * (n - 1) // 2
+
+    out = np.empty((N, 2, 2),dtype = ab.dtype)
+    idx = np.concatenate(([0], np.arange(n-  1, 0, -1).cumsum()))
     start, stop = idx[:-1], idx[1:]
-    for j,i in enumerate(range(n-1)):
-        out[start[j]:stop[j],0] = ab[j]
-        out[start[j]:stop[j],1] = ab[j+1:]
+
+    for j, i in enumerate(range(n-1)):
+        out[start[j]:stop[j], 0] = ab[j]
+        out[start[j]:stop[j], 1] = ab[(j + 1):]
+
     return out
 
+# Given points p1 and p2 from a list of points, return all points between them
+# p1: First point (2-dimension numpy array)
+# p2: Second point (2-dimension numpy array)
+# points: List of points in which p1 and p2 reside (numpy array of 2-dimension arrays)
 def pair_range(p1, p2, points):
-	for i in range(int(p1[0]), int(p2[0])):
+	for i in range(int(p1[0]) + 1, int(p2[0])):
 		if (i != 0):
 			yield(points[i])
 
-def find_trend(symbol, start_date, end_date):
+# Given a difference percentage, calculate and return its loss value
+# x: Percent difference (float)
+def loss_func(x):
+	if x >= 0:
+		tmp = x + 0.7
+		return np.power((-3 / (np.log10(tmp) - np.power(tmp, 2))), 4)
+
+	return 2 * np.power((x - 2), 5)
+
+# Find all valid trend vectors in the date range for the given symbol
+# symbol: The ticker symbol
+# start_date: First date to consider (YYYY-MM-DD string)
+# end_date: Last date to consider (YYYY-MM-DD string)
+# type: Which portion of the record to use (record index int, e.g. 5 = daily min)
+#	See prices table format
+# min_distance: The minimum distance between a points to consider it for a trend vector (int)
+def find_trend(symbol, start_date, end_date, type, min_distance):
+	
+	# Get all requested records from DB
 	records = DBManager.get_records(symbol, start_date, end_date)
 
-	print(records[195])
-	print(records[206])
-	return
-
+	# Get points from records depending on type parameter
 	points = []
 	for idx, val in enumerate(records):
-		point = np.array([idx, val[5]])
+		point = np.array([idx, val[type]])
 		points.append(point)
 
 	# Create a numpy array of points and get all pairs
-	points = np.asarray(points, dtype=np.float32)
+	points = np.asarray(points, dtype = np.float32)
 	pairs = pairwise_combs(points)
 
 	diffs = []
+
+	# Iterate all pairs
 	for pair in pairs:
 		p0 = pair[0]
 		p1 = pair[1]
-		v = p1 - p0
-		
-		diff_arr = []
-		for p in pair_range(p0, p1, points):
-			v = v * (p[0] / v[0]) + p0
 
-			diff = p - v
+		# Lazy way to enforce min_distance
+		if p1[0] - p0[0] < min_distance:
+			continue
+
+		# Trend vector to test
+		v = p1 - p0
+
+		diff_arr = []
+
+		# Iterate all points between p0 and p1
+		for p in pair_range(p0, p1, points):
+
+			# Get the point where p is projected onto v
+			v_mod = np.array((p[0], p0[1] + v[1] * (p[0] - p0[0]) / v[0]))
+
+			# Find the percent distance from p
+			diff = p - v_mod
 			diff_p = diff[1] / p[1]
 
 			diff_arr.append(diff_p)
 
-		diffs.append([pair, diff_arr])
-	
-	i = 0
-	for l in diffs:
-		diff = l[1]
-		loss = 0
-		for v in diff:
-			if v < 0:
-				loss += v
-		diffs[i].append(loss)
-		i += 1
+		losses = list(map(loss_func, diff_arr))
+		total_loss = reduce((lambda a, b: a + b), losses)
 
-	diffs.sort(key = lambda x: x[2])
+		# Get actual dates from pair info
+		date0 = records[pair[0][0].astype(int)][1]
+		date1 = records[pair[1][0].astype(int)][1]
 
-	i = len(diffs) - 1
-	while i > (0):
-		v = diffs[i]
-		if (v[2] > -5 and v[0][1][0] - v[0][0][0]) > 10:
-			print(diffs[i])
+		diffs.append([[date0, date1], total_loss])
 
-		i -= 1
+	diffs.sort(key = lambda x: x[1])
+	diffs.reverse()
 
+	return diffs
 
+# Get all support vectors
+vectors = find_trend("AMD", "2019-01-01", "2019-05-01", 5, 10)
 
-
-
-	#cpair = pairs[5000]
-	#for x in pair_range(cpair[0], cpair[1], points):
-	#	print(x)
-
-	
-	#for i in range(int(cpair[0][0]), int(cpair[1][0])):
-	#	print(points[i])
-
-
-find_trend("AMD", "2018-01-01", "2019-01-01")
+# Print the best 10 results
+print(vectors[:10])
