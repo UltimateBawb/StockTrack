@@ -34,9 +34,9 @@ def pair_range(p1, p2, points):
 def loss_func(x):
 	if x >= 0:
 		tmp = x + 0.7
-		return np.power((-3 / (np.log10(tmp) - np.power(tmp, 2))), 4)
+		return np.power((-3 / (np.log2(tmp) - np.power(tmp, 2))), 4)
 
-	return 2 * np.power((x - 2), 5)
+	return 2 * np.power((x - 2), 7)
 
 # Find all valid trend vectors in the date range for the given symbol
 # symbol: The ticker symbol
@@ -103,7 +103,7 @@ def find_trend(symbol, start_date, end_date, type, min_distance):
 	return diffs
 
 # Get all support vectors
-vectors = find_trend("AMD", "2019-01-01", "2019-05-01", 5, 10)
+vectors = find_trend("AMD", "2019-02-01", "2019-10-01", 5, 10)
 
 # Print the best 10 results
 print(vectors[:10])
