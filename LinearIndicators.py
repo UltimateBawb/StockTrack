@@ -36,7 +36,7 @@ def loss_func(x):
 		tmp = x + 0.7
 		return np.power((-3 / (np.log2(tmp) - np.power(tmp, 2))), 4)
 
-	return 2 * np.power((x - 2), 7)
+	return 2 * np.power(((x * 100) - 2), 5)
 
 # Find all valid trend vectors in the date range for the given symbol
 # symbol: The ticker symbol
@@ -60,6 +60,9 @@ def find_trend(symbol, start_date, end_date, type, min_distance):
 	points = np.asarray(points, dtype = np.float32)
 	pairs = pairwise_combs(points)
 
+	# Last point
+	lp = points[len(points) - 1]
+
 	diffs = []
 
 	# Iterate all pairs
@@ -76,8 +79,8 @@ def find_trend(symbol, start_date, end_date, type, min_distance):
 
 		diff_arr = []
 
-		# Iterate all points between p0 and p1
-		for p in pair_range(p0, p1, points):
+		# Iterate all points between p0 and lp
+		for p in pair_range(p0, lp, points):
 
 			# Get the point where p is projected onto v
 			v_mod = np.array((p[0], p0[1] + v[1] * (p[0] - p0[0]) / v[0]))
@@ -103,7 +106,7 @@ def find_trend(symbol, start_date, end_date, type, min_distance):
 	return diffs
 
 # Get all support vectors
-vectors = find_trend("AMD", "2019-02-01", "2019-10-01", 5, 10)
+vectors = find_trend("AMD", "2019-08-01", "2019-09-19", 5, 10)
 
 # Print the best 10 results
 print(vectors[:10])
