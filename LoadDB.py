@@ -20,7 +20,6 @@ def get_and_commit(symbol, db_con):
 			db_cur.execute(stmt, tupl)
 		db_con.commit()
 	except Exception as e:
-		print(e)
 		if db_con.closed == 0:
 			db_con.rollback()
 		pass
