@@ -1,14 +1,12 @@
 import psycopg2
 from queue import Queue
-import threading
+import multiprocessing as mp
 import yfinance as yf
 
-class glob_q():
-	to_run = Queue()
-	running = 0
-
-def get_and_commit(symbol, db_con):
+def get_and_commit(symbol, running):
+	db_con = psycopg2.connect(host = "localhost", database = "postgres", user = "postgres", password = "postgres")
 	db_cur = None
+
 	try:
 		ticker = yf.Ticker(symbol)
 		hist = ticker.history(period = "max")
@@ -30,20 +28,22 @@ def get_and_commit(symbol, db_con):
 		db_con.close()
 
 	print("Finished work on " + symbol)
-	glob_q.running -= 1
+	running.value -= 1
 
 symbols = []
 with open("nasdaqlisted.txt") as f:
 	for l in f.readlines():
 		symbols.append(l.split("|")[0])
 
+to_run = Queue()
+running = mp.Value('d', 0)
+
 for symbol in symbols:
-	glob_q.to_run.put(symbol)
+	to_run.put(symbol)
 
-while not glob_q.to_run.empty():
-	if glob_q.running < 80:
-		glob_q.running += 1
-
-		db_con = psycopg2.connect(host = "localhost", database = "postgres", user = "postgres", password = "postgres")
-		t = threading.Thread(target = get_and_commit, args = (glob_q.to_run.get(), db_con,))
-		t.start()
+while not to_run.empty():
+	if running.value < 80:
+		running.value += 1
+		
+		p = mp.Process(target = get_and_commit, args = (to_run.get(), running,))
+		p.start()
