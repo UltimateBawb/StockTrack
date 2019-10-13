@@ -1,8 +1,11 @@
 import DBManager
 import itertools
+import multiprocessing as mp
 import numpy as np
+import time
 
 from functools import reduce
+from queue import Queue
 
 # Given a numpy array, return a new numpy array of all possible 2-combinations
 # ab: The numpy array
@@ -45,8 +48,9 @@ def loss_func(x):
 # type: Which portion of the record to use (record index int, e.g. 5 = daily min)
 #	See prices table format
 # min_distance: The minimum distance between a points to consider it for a trend vector (int)
-def find_trend(symbol, start_date, end_date, type, min_distance):
-	
+def find_trend(symbol, start_date, end_date, type, min_distance, running, all_diffs):
+	print("Finding trends for " + symbol)
+
 	# Get all requested records from DB
 	records = DBManager.get_records(symbol, start_date, end_date)
 
@@ -98,15 +102,49 @@ def find_trend(symbol, start_date, end_date, type, min_distance):
 		date0 = records[pair[0][0].astype(int)][1]
 		date1 = records[pair[1][0].astype(int)][1]
 
-		diffs.append([[date0, date1], total_loss])
+		diffs.append([symbol, [date0, date1], total_loss])
 
-	diffs.sort(key = lambda x: x[1])
-	diffs.reverse()
+	print("Finished LinearIndicators for " + symbol)
+	all_diffs.extend(diffs)
 
-	return diffs
+	running.value -= 1
+
+	#return diffs
+
+to_run = Queue()
+running = mp.Value('d', 0)
+
+i = 0
+symbols = DBManager.get_symbols()
+for symbol in symbols:
+	if i > 100:
+		break
+	to_run.put(symbol)
+	i += 1
+
+all_diffs = []
+with mp.Manager() as manager:
+	l = manager.list()
+
+	while not to_run.empty():
+		if running.value < 16:
+			p = mp.Process(target = find_trend, args = (to_run.get(), "2019-08-01", "2019-09-19", 5, 10, running, l,))
+			p.start()
+			running.value += 1
+
+	# Wait for the last processes to finish
+	while running.value > 0:
+		continue
+
+
+	all_diffs.extend(l)
+	all_diffs.sort(key = lambda x: x[2])
+	all_diffs.reverse()
+
+	print(all_diffs[:10])
 
 # Get all support vectors
-vectors = find_trend("AMD", "2019-08-01", "2019-09-19", 5, 10)
+#vectors = find_trend("AMD", "2019-08-01", "2019-09-19", 5, 10)
 
 # Print the best 10 results
-print(vectors[:10])
+#print(vectors[:10])
