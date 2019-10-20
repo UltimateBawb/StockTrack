@@ -37,7 +37,7 @@ def pair_range(p1, p2, points):
 def loss_func(x):
 	if x >= 0:
 		tmp = x + 0.7
-		return np.power((-3 / (np.log2(tmp) - np.power(tmp, 2))), 4)
+		return np.power((-3 / (np.log2(tmp + 0.85) - np.power(tmp + 0.85, 2))), 4)
 
 	return 2 * np.power(((x * 100) - 2), 5)
 
@@ -101,11 +101,11 @@ def find_trend(symbol, start_date, end_date, type, min_distance, running, all_di
 		losses = list(map(loss_func, diff_arr))
 		total_loss = reduce((lambda a, b: a + b), losses)
 
-		# Get actual dates from pair info
-		date0 = records[pair[0][0].astype(int)][1]
-		date1 = records[pair[1][0].astype(int)][1]
-
 		if (total_loss > 0):
+			# Get actual dates from pair info
+			date0 = records[pair[0][0].astype(int)][1]
+			date1 = records[pair[1][0].astype(int)][1]
+
 			diffs.append([symbol, [date0, date1], total_loss])
 
 	print("Finished LinearIndicators for " + symbol)
@@ -131,14 +131,16 @@ with mp.Manager() as manager:
 	l = manager.list()
 
 	while not to_run.empty():
-		if running.value < 8:
-			p = mp.Process(target = find_trend, args = (to_run.get(), "2018-10-01", "2019-10-02", 5, 10, running, l,))
+		if running.value < 40:
+			p = mp.Process(target = find_trend, args = (to_run.get(), "2019-05-01", "2019-10-02", 5, 5, running, l,))
 			p.start()
 			running.value += 1
 
 	# Wait for the last processes to finish
-	#while running.value > 1:
-	#	continue
+	while running.value > 0:
+		time.sleep(1)
+		print("waiting")
+		continue
 
 
 	all_diffs.extend(l)
