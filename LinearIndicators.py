@@ -60,6 +60,9 @@ def find_trend(symbol, start_date, end_date, type, min_distance, running, all_di
 		point = np.array([idx, val[type]])
 		points.append(point)
 
+	if len(points) == 0:
+		return []
+
 	# Create a numpy array of points and get all pairs
 	points = np.asarray(points, dtype = np.float32)
 	pairs = pairwise_combs(points)
@@ -102,7 +105,8 @@ def find_trend(symbol, start_date, end_date, type, min_distance, running, all_di
 		date0 = records[pair[0][0].astype(int)][1]
 		date1 = records[pair[1][0].astype(int)][1]
 
-		diffs.append([symbol, [date0, date1], total_loss])
+		if (total_loss > 0):
+			diffs.append([symbol, [date0, date1], total_loss])
 
 	print("Finished LinearIndicators for " + symbol)
 	all_diffs.extend(diffs)
@@ -117,7 +121,7 @@ running = mp.Value('d', 0)
 i = 0
 symbols = DBManager.get_symbols()
 for symbol in symbols:
-	if i > 100:
+	if i > 10000:
 		break
 	to_run.put(symbol)
 	i += 1
@@ -127,17 +131,18 @@ with mp.Manager() as manager:
 	l = manager.list()
 
 	while not to_run.empty():
-		if running.value < 16:
-			p = mp.Process(target = find_trend, args = (to_run.get(), "2019-08-01", "2019-09-19", 5, 10, running, l,))
+		if running.value < 8:
+			p = mp.Process(target = find_trend, args = (to_run.get(), "2018-10-01", "2019-10-02", 5, 10, running, l,))
 			p.start()
 			running.value += 1
 
 	# Wait for the last processes to finish
-	while running.value > 0:
-		continue
+	#while running.value > 1:
+	#	continue
 
 
 	all_diffs.extend(l)
+	print(len(all_diffs))
 	all_diffs.sort(key = lambda x: x[2])
 	all_diffs.reverse()
 
