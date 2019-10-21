@@ -49,67 +49,72 @@ def loss_func(x):
 #	See prices table format
 # min_distance: The minimum distance between a points to consider it for a trend vector (int)
 def find_trend(symbol, start_date, end_date, type, min_distance, running, all_diffs):
-	print("Finding trends for " + symbol)
+	
+	try:
+		print("Finding trends for " + symbol)
 
-	# Get all requested records from DB
-	records = DBManager.get_records(symbol, start_date, end_date)
+		# Get all requested records from DB
+		records = DBManager.get_records(symbol, start_date, end_date)
 
-	# Get points from records depending on type parameter
-	points = []
-	for idx, val in enumerate(records):
-		point = np.array([idx, val[type]])
-		points.append(point)
+		# Get points from records depending on type parameter
+		points = []
+		for idx, val in enumerate(records):
+			point = np.array([idx, val[type]])
+			points.append(point)
 
-	if len(points) == 0:
-		return []
+		if len(points) == 0:
+			return []
 
-	# Create a numpy array of points and get all pairs
-	points = np.asarray(points, dtype = np.float32)
-	pairs = pairwise_combs(points)
+		# Create a numpy array of points and get all pairs
+		points = np.asarray(points, dtype = np.float32)
+		pairs = pairwise_combs(points)
 
-	# Last point
-	lp = points[len(points) - 1]
+		# Last point
+		lp = points[len(points) - 1]
 
-	diffs = []
+		diffs = []
 
-	# Iterate all pairs
-	for pair in pairs:
-		p0 = pair[0]
-		p1 = pair[1]
+		# Iterate all pairs
+		for pair in pairs:
+			p0 = pair[0]
+			p1 = pair[1]
 
-		# Lazy way to enforce min_distance
-		if p1[0] - p0[0] < min_distance:
-			continue
+			# Lazy way to enforce min_distance
+			if p1[0] - p0[0] < min_distance:
+				continue
 
-		# Trend vector to test
-		v = p1 - p0
+			# Trend vector to test
+			v = p1 - p0
 
-		diff_arr = []
+			diff_arr = []
 
-		# Iterate all points between p0 and lp
-		for p in pair_range(p0, lp, points):
+			# Iterate all points between p0 and lp
+			for p in pair_range(p0, lp, points):
 
-			# Get the point where p is projected onto v
-			v_mod = np.array((p[0], p0[1] + v[1] * (p[0] - p0[0]) / v[0]))
+				# Get the point where p is projected onto v
+				v_mod = np.array((p[0], p0[1] + v[1] * (p[0] - p0[0]) / v[0]))
 
-			# Find the percent distance from p
-			diff = p - v_mod
-			diff_p = diff[1] / p[1]
+				# Find the percent distance from p
+				diff = p - v_mod
+				diff_p = diff[1] / p[1]
 
-			diff_arr.append(diff_p)
+				diff_arr.append(diff_p)
 
-		losses = list(map(loss_func, diff_arr))
-		total_loss = reduce((lambda a, b: a + b), losses)
+			losses = list(map(loss_func, diff_arr))
+			total_loss = reduce((lambda a, b: a + b), losses)
 
-		if (total_loss > 0):
-			# Get actual dates from pair info
-			date0 = records[pair[0][0].astype(int)][1]
-			date1 = records[pair[1][0].astype(int)][1]
+			if (total_loss > 0):
+				# Get actual dates from pair info
+				date0 = records[pair[0][0].astype(int)][1]
+				date1 = records[pair[1][0].astype(int)][1]
 
-			diffs.append([symbol, [date0, date1], total_loss])
+				diffs.append([symbol, [date0, date1], total_loss])
 
-	print("Finished LinearIndicators for " + symbol)
-	all_diffs.extend(diffs)
+		print("Finished LinearIndicators for " + symbol)
+		all_diffs.extend(diffs)
+	
+	except:
+		pass
 
 	running.value -= 1
 
@@ -132,14 +137,14 @@ with mp.Manager() as manager:
 
 	while not to_run.empty():
 		if running.value < 40:
-			p = mp.Process(target = find_trend, args = (to_run.get(), "2019-05-01", "2019-10-02", 5, 5, running, l,))
+			p = mp.Process(target = find_trend, args = (to_run.get(), "2019-04-01", "2019-10-02", 10, 5, running, l,))
 			p.start()
 			running.value += 1
 
 	# Wait for the last processes to finish
 	while running.value > 0:
-		time.sleep(1)
-		print("waiting")
+		time.sleep("Waiting for " + 1 + " jobs to complete")
+		print(str(running.value))
 		continue
 
 
@@ -148,7 +153,7 @@ with mp.Manager() as manager:
 	all_diffs.sort(key = lambda x: x[2])
 	all_diffs.reverse()
 
-	print(all_diffs[:10])
+	print(all_diffs[:20])
 
 # Get all support vectors
 #vectors = find_trend("AMD", "2019-08-01", "2019-09-19", 5, 10)
