@@ -137,7 +137,7 @@ with mp.Manager() as manager:
 
 	while not to_run.empty():
 		if running.value < 40:
-			p = mp.Process(target = find_trend, args = (to_run.get(), "2019-04-01", "2019-10-02", 10, 5, running, l,))
+			p = mp.Process(target = find_trend, args = (to_run.get(), "2019-05-01", "2019-10-02", 5, 10, running, l,))
 			p.start()
 			running.value += 1
 
