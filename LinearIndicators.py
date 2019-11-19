@@ -126,7 +126,7 @@ running = mp.Value('d', 0)
 i = 0
 symbols = DBManager.get_symbols()
 for symbol in symbols:
-	if i > 10000:
+	if i > 100:
 		break
 	to_run.put(symbol)
 	i += 1
@@ -143,8 +143,8 @@ with mp.Manager() as manager:
 
 	# Wait for the last processes to finish
 	while running.value > 0:
-		time.sleep("Waiting for " + 1 + " jobs to complete")
-		print(str(running.value))
+		time.sleep(1)
+		print("Waiting for " + str(running.value) + " jobs to complete")
 		continue
 
 
