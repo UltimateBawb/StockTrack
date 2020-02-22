@@ -4,7 +4,9 @@ Symbol lists: ftp://ftp.nasdaqtrader.com/symboldirectory
 
 Setup database:
 
-Install postgres
+> $ sudo apt update
+
+> $ sudo apt install postgresql postgresql-contrib
 
 > $ sudo -u postgres psql
 
